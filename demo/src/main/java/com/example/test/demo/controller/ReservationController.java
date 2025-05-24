@@ -1,0 +1,256 @@
+package com.example.test.demo.controller;
+
+import com.example.test.demo.config.CustomUserDetails;
+import com.example.test.demo.dto.BarrierOpenRequestDTO;
+import com.example.test.demo.dto.ParkingLotStatisticsDTO;
+import com.example.test.demo.dto.ReservationRequestDTO;
+import com.example.test.demo.dto.ReservationResponseDTO;
+import com.example.test.demo.entity.*;
+import com.example.test.demo.repository.ParkingSlotRepository;
+import com.example.test.demo.repository.ParkingLotRepository;
+import com.example.test.demo.repository.ReservationRepository;
+import com.example.test.demo.service.ReservationServiceImpl;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import org.springframework.security.access.AccessDeniedException;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/reservations")
+@RequiredArgsConstructor
+public class ReservationController {
+
+    private final ReservationRepository reservationRepository;
+    private final ParkingSlotRepository slotRepository;
+    private final ParkingLotRepository parkingLotRepository;
+    private final ReservationServiceImpl reservationServiceImpl;
+
+    @PostMapping
+    public ResponseEntity<?> createReservation(
+            @RequestBody ReservationRequestDTO dto,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        User user = customUserDetails.getUser();
+
+        ParkingSlot slot = slotRepository.findById(dto.getSlotId()).orElseThrow(
+                () -> new RuntimeException("해당 주차칸을 찾을 수 없습니다.")
+        );
+
+        if (dto.getTimeSlots() == null || dto.getTimeSlots().isEmpty()) {
+            return ResponseEntity.badRequest().body("예약할 시간 슬롯이 없습니다.");
+        }
+
+        List<String> timeLabels = dto.getTimeSlots().stream().sorted().toList();
+        String startLabel = timeLabels.get(0);
+        String endLabel = timeLabels.get(timeLabels.size() - 1);
+
+        LocalDateTime nowDate = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime startTime = parseLabelToTime(nowDate, startLabel);
+        LocalDateTime endTime = parseLabelToTime(nowDate, endLabel).plusHours(1);
+
+        //  예약 중복 체크
+        boolean hasConfilict = !reservationRepository.findConflictsBySlot(
+                slot.getId(), startTime, endTime
+        ).isEmpty();
+
+        if (hasConfilict) return ResponseEntity.badRequest().body("해당 시간에 이미 예약이 존재합니다.");
+
+        // 요금 계산
+        long hours = Duration.between(startTime, endTime).toHours();
+        int price = (int) hours * slot.getParkingLot().getPricePerHour();
+
+        Reservation reservation = new Reservation();
+        reservation.setUser(user);
+        reservation.setParkingSlot(slot);
+        reservation.setStartTime(startTime);
+        reservation.setEndTime(endTime);
+        reservation.setTotalPrice(price);
+        reservation.setStatus(ReservationStatus.RESERVED);
+
+        reservationRepository.save(reservation);
+
+        slot.setAvailable(false);
+        slotRepository.save(slot);
+
+        ReservationResponseDTO response = new ReservationResponseDTO();
+        response.setReservationId(reservation.getId());
+        response.setUsername(user.getUsername());
+        response.setSlotNumber(slot.getSlotNumber());
+        response.setParkingLotName(slot.getParkingLot().getName());
+        response.setStartTime(startTime);
+        response.setEndTime(endTime);
+        response.setTotalPrice(reservation.getTotalPrice());
+        response.setStatus(reservation.getStatus());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{reservationId}")
+    public ResponseEntity<?> cancelReservation(
+            @PathVariable long reservationId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        if (customUserDetails == null) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        User user = customUserDetails.getUser();
+
+        Reservation reservation = reservationRepository.findById(reservationId).orElse(null);
+
+        if (reservation == null) {
+            return ResponseEntity.status(403).body("해당 예약은 존재하지 않습니다.");
+        }
+
+        if (!reservation.getUser().getId().equals(user.getId())) {
+            return ResponseEntity.status(403).body("해당 예약을 취소할 권한이 없습니다.");
+        }
+
+        if (reservation.getStartTime().isBefore(java.time.LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body("이미 시작된 예약은 취소할 수 없습니다.");
+        }
+
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservationRepository.save(reservation);
+
+        ParkingSlot slot = reservation.getParkingSlot();
+        slot.setAvailable(true);
+        slotRepository.save(slot);
+
+        return ResponseEntity.ok("예약이 성공적으로 취소되었습니다.");
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<?> getMyReservations(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @RequestParam(required = false) ReservationStatus status,
+            @RequestParam(required = false, defaultValue = "asc") String sort,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
+    ) {
+        if (customUserDetails == null) {
+            return ResponseEntity.status(403).body("현재 로그인 상태가 아닙니다.");
+        }
+
+        User user = customUserDetails.getUser();
+        List<Reservation> reservations;
+
+        if (status != null) {
+            reservations = reservationRepository.findByUserAndStatus(user, status);
+        } else {
+            reservations = reservationRepository.findByUser(user);
+        }
+
+        if(start != null && end != null) {
+            reservations = reservations.stream()
+                    .filter(r -> !r.getEndTime().isBefore(start) && !r.getStartTime().isAfter(end))
+                    .collect(Collectors.toList());
+        }
+
+        if("desc".equalsIgnoreCase(sort)) {
+            reservations.sort(Comparator.comparing(Reservation::getStartTime).reversed());
+        } else {
+            reservations.sort(Comparator.comparing(Reservation::getStartTime));
+        }
+
+        List<ReservationResponseDTO> response = reservations.stream().map(
+               reservation -> {
+                   ReservationResponseDTO dto =  new ReservationResponseDTO();
+                   dto.setReservationId(reservation.getId());
+                   dto.setUsername(user.getUsername());
+                   dto.setSlotNumber(reservation.getParkingSlot().getSlotNumber());
+                   dto.setParkingLotName(reservation.getParkingSlot().getParkingLot().getName());
+                   dto.setStartTime(reservation.getStartTime());
+                   dto.setEndTime(reservation.getEndTime());
+                   dto.setTotalPrice(reservation.getTotalPrice());
+                   dto.setStatus(reservation.getStatus());
+                   return dto;
+               }
+        ).toList();
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/barrier/open")
+    public ResponseEntity<?> openBarrier(
+            @RequestBody BarrierOpenRequestDTO dto,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+            ) {
+        User user = customUserDetails.getUser();
+        reservationRepository.findActiveReservationNow(user.getId(), dto.getSlotId(), LocalDateTime.now())
+                .orElseThrow(() -> new RuntimeException("현재 시간에 해당 유저의 유효한 예약이 없습니다."));
+        // -> 여기가 사실상 입차 체크: 예약된 시간 내에 요청했는지 확인
+        // IoT 명령 전송 로직 포함
+        return ResponseEntity.ok("차단기 열림 요청 성공");
+    }
+
+    @GetMapping("/admin/all")
+    public ResponseEntity<?> getAllReservations(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+
+        try {
+            List<ReservationResponseDTO> result = reservationServiceImpl.getAllReservations(customUserDetails.getUser());
+            return ResponseEntity.ok(result);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("parking-lot/{spaceId}/statistics")
+    public ResponseEntity<?> getParkingLotStatistics(
+            @PathVariable Long spaceId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        try {
+            ParkingLotStatisticsDTO dto = reservationServiceImpl.getParkingLotStatistics(customUserDetails.getUser(), spaceId);
+            return ResponseEntity.ok(dto);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/parking-lot/{spaceId}")
+    public ResponseEntity<?> getReservationsByParkingLotId(
+            @PathVariable long spaceId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        try {
+            List<ReservationResponseDTO> result = reservationServiceImpl.getReservationsByParkingLot(customUserDetails.getUser(), spaceId);
+            return ResponseEntity.ok(result);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/admin/statistics")
+    public ResponseEntity<?> getAllParkingLotStatistics(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        try {
+            List<ParkingLotStatisticsDTO> result = reservationServiceImpl.getAllParkingLotStatistics(customUserDetails.getUser());
+            return ResponseEntity.ok(result);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    private LocalDateTime parseLabelToTime(LocalDateTime baseDate, String label) {
+        String[] parts = label.split(":");
+        int hour = Integer.parseInt(parts[0]);
+        int minute = Integer.parseInt(parts[1]);
+        return baseDate.withHour(hour).withMinute(minute);
+    }
+}
