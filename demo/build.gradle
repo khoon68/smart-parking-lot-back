@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.example.test'
-version = '0.0.1-SNAPSHOT'
+version = new Date().format("yyyyMMddHHmm")
 
 java {
 	toolchain {
