@@ -178,19 +178,6 @@ public class ReservationController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/barrier/open")
-    public ResponseEntity<?> openBarrier(
-            @RequestBody BarrierOpenRequestDTO dto,
-            @AuthenticationPrincipal CustomUserDetails customUserDetails
-            ) {
-        User user = customUserDetails.getUser();
-        reservationRepository.findActiveReservationNow(user.getId(), dto.getSlotId(), LocalDateTime.now())
-                .orElseThrow(() -> new RuntimeException("현재 시간에 해당 유저의 유효한 예약이 없습니다."));
-        // -> 여기가 사실상 입차 체크: 예약된 시간 내에 요청했는지 확인
-        // IoT 명령 전송 로직 포함
-        return ResponseEntity.ok("차단기 열림 요청 성공");
-    }
-
     @GetMapping("/admin/all")
     public ResponseEntity<?> getAllReservations(
             @AuthenticationPrincipal CustomUserDetails customUserDetails) {

@@ -87,9 +87,9 @@ public class DataInitializer implements CommandLineRunner {
             ParkingSlot s1 = ParkingSlot.builder().slotNumber(1).isAvailable(false).isOpened(false).hardwareId("esp01").parkingLot(space1).build();
             ParkingSlot s2 = ParkingSlot.builder().slotNumber(2).isAvailable(true).isOpened(false).hardwareId("esp02").parkingLot(space1).build();
             ParkingSlot s3 = ParkingSlot.builder().slotNumber(3).isAvailable(true).isOpened(false).hardwareId("esp03").parkingLot(space1).build();
-            ParkingSlot s4 = ParkingSlot.builder().slotNumber(4).isAvailable(false).isOpened(false).hardwareId("esp04").parkingLot(space1).build();
-            ParkingSlot s5 = ParkingSlot.builder().slotNumber(5).isAvailable(true).isOpened(false).hardwareId("esp05").parkingLot(space1).build();
-            ParkingSlot s6 = ParkingSlot.builder().slotNumber(6).isAvailable(true).isOpened(false).hardwareId("esp06").parkingLot(space1).build();
+            ParkingSlot s4 = ParkingSlot.builder().slotNumber(4).isAvailable(false).isOpened(false).hardwareId("25").parkingLot(space1).build();
+            ParkingSlot s5 = ParkingSlot.builder().slotNumber(5).isAvailable(true).isOpened(false).hardwareId("26").parkingLot(space1).build();
+            ParkingSlot s6 = ParkingSlot.builder().slotNumber(6).isAvailable(true).isOpened(false).hardwareId("27").parkingLot(space1).build();
             ParkingSlotRepository.saveAll(List.of(s1, s2, s3, s4, s5, s6));
 
             ParkingSlot s7 = ParkingSlot.builder().slotNumber(1).isAvailable(false).isOpened(false).hardwareId("esp07").parkingLot(space2).build();
@@ -112,7 +112,7 @@ public class DataInitializer implements CommandLineRunner {
 
             Reservation r2 = Reservation.builder()
                     .user(user2)
-                    .parkingSlot(s4)
+                    .parkingSlot(s2)
                     .startTime(LocalDateTime.of(2025, 6, 30, 19, 0))
                     .endTime(LocalDateTime.of(2025, 6, 30, 21, 0))
                     .totalPrice(2000)
@@ -130,7 +130,7 @@ public class DataInitializer implements CommandLineRunner {
 
             Reservation r4 = Reservation.builder()
                     .user(user1)
-                    .parkingSlot(s10)
+                    .parkingSlot(s8)
                     .startTime(LocalDateTime.of(2025, 6, 30, 19, 0))
                     .endTime(LocalDateTime.of(2025, 6, 30, 21, 0))
                     .totalPrice(4000)
