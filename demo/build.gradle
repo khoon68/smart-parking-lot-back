@@ -5,12 +5,19 @@ plugins {
 }
 
 group = 'com.example.test'
-version = new Date().format("yyyyMMddHHmm")
+def timestamp = new Date().format("yyyyMMddHHmm")
+version = timestamp
 
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(17)
 	}
+}
+
+bootJar {
+	archiveBaseName.set("demo")
+	archiveVersion.set(project.provider { project.version.toString() })  // ✅ 타입 호환 해결
+	archiveClassifier.set("")
 }
 
 configurations {
