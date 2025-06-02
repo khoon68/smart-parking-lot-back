@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import org.springframework.security.access.AccessDeniedException;
+
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -30,16 +32,19 @@ public class ReservationServiceImpl implements ReservationService {
 
         List<Reservation> reservations = reservationRepository.findByParkingSlot_ParkingLot_Id(parkingLotId);
 
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
         return reservations.stream().map(reservation -> {
             ReservationResponseDTO dto = new ReservationResponseDTO();
             dto.setReservationId(reservation.getId());
             dto.setUsername(reservation.getUser().getUsername());
             dto.setSlotNumber(reservation.getParkingSlot().getSlotNumber());
             dto.setParkingLotName(parkingLot.getName());
-            dto.setStartTime(reservation.getStartTime());
-            dto.setEndTime(reservation.getEndTime());
+            dto.setStartTime(reservation.getEndTime().format(formatter));
+            dto.setEndTime(reservation.getEndTime().format(formatter));
             dto.setTotalPrice(reservation.getTotalPrice());
             dto.setStatus(reservation.getStatus());
+            dto.setSlotOpened(reservation.getParkingSlot().isOpened());
             return dto;
         }).toList();
     }
@@ -51,6 +56,7 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         List<Reservation> reservations = reservationRepository.findAll();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
         return reservations.stream().map(reservation -> {
             ReservationResponseDTO dto = new ReservationResponseDTO();
@@ -58,10 +64,11 @@ public class ReservationServiceImpl implements ReservationService {
             dto.setUsername(reservation.getUser().getUsername());
             dto.setSlotNumber(reservation.getParkingSlot().getSlotNumber());
             dto.setParkingLotName(reservation.getParkingSlot().getParkingLot().getName());
-            dto.setStartTime(reservation.getStartTime());
-            dto.setEndTime(reservation.getEndTime());
+            dto.setStartTime(reservation.getEndTime().format(formatter));
+            dto.setEndTime(reservation.getEndTime().format(formatter));
             dto.setTotalPrice(reservation.getTotalPrice());
             dto.setStatus(reservation.getStatus());
+            dto.setSlotOpened(reservation.getParkingSlot().isOpened());
             return dto;
         }).toList();
     }

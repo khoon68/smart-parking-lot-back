@@ -25,7 +25,7 @@ public class ParkingLotController {
                 parkingLot -> new ParkingLotDTO(
                         parkingLot.getId(),
                         parkingLot.getName(),
-                        parkingLot.getDistant(),
+                        parkingLot.getDistance(),
                         parkingLot.getPricePerHour(),
                         parkingLot.getTotalSlots(),
                         parkingLot.getAvailableSlots()

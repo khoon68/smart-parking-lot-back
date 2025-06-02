@@ -16,7 +16,7 @@ public class ParkingLot {
     private Long id;
 
     private String name;
-    private int distant;
+    private int distance;
     private int pricePerHour;
     private int totalSlots;
     private int availableSlots;

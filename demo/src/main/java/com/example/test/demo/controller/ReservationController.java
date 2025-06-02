@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.AccessDeniedException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +40,7 @@ public class ReservationController {
             @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
         User user = customUserDetails.getUser();
+        System.out.println("요청 timeSlots: " + dto.getTimeSlots());
 
         ParkingSlot slot = slotRepository.findById(dto.getSlotId()).orElseThrow(
                 () -> new RuntimeException("해당 주차칸을 찾을 수 없습니다.")
@@ -80,15 +82,19 @@ public class ReservationController {
         slot.setAvailable(false);
         slotRepository.save(slot);
 
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
         ReservationResponseDTO response = new ReservationResponseDTO();
         response.setReservationId(reservation.getId());
         response.setUsername(user.getUsername());
+        response.setSlotId(slot.getId());
         response.setSlotNumber(slot.getSlotNumber());
         response.setParkingLotName(slot.getParkingLot().getName());
-        response.setStartTime(startTime);
-        response.setEndTime(endTime);
+        response.setStartTime(startTime.format(formatter));
+        response.setEndTime(endTime.format(formatter));
         response.setTotalPrice(reservation.getTotalPrice());
         response.setStatus(reservation.getStatus());
+        response.setSlotOpened(slot.isOpened());
 
         return ResponseEntity.ok(response);
     }
@@ -114,9 +120,9 @@ public class ReservationController {
             return ResponseEntity.status(403).body("해당 예약을 취소할 권한이 없습니다.");
         }
 
-        if (reservation.getStartTime().isBefore(java.time.LocalDateTime.now())) {
-            return ResponseEntity.badRequest().body("이미 시작된 예약은 취소할 수 없습니다.");
-        }
+//        if (reservation.getStartTime().isBefore(java.time.LocalDateTime.now())) {
+//            return ResponseEntity.badRequest().body("이미 시작된 예약은 취소할 수 없습니다.");
+//        }
 
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
@@ -161,17 +167,21 @@ public class ReservationController {
             reservations.sort(Comparator.comparing(Reservation::getStartTime));
         }
 
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
         List<ReservationResponseDTO> response = reservations.stream().map(
                reservation -> {
-                   ReservationResponseDTO dto =  new ReservationResponseDTO();
+                   ReservationResponseDTO dto = new ReservationResponseDTO();
                    dto.setReservationId(reservation.getId());
                    dto.setUsername(user.getUsername());
+                   dto.setSlotId(reservation.getParkingSlot().getId());
                    dto.setSlotNumber(reservation.getParkingSlot().getSlotNumber());
                    dto.setParkingLotName(reservation.getParkingSlot().getParkingLot().getName());
-                   dto.setStartTime(reservation.getStartTime());
-                   dto.setEndTime(reservation.getEndTime());
+                   dto.setStartTime(reservation.getEndTime().format(formatter));
+                   dto.setEndTime(reservation.getEndTime().format(formatter));
                    dto.setTotalPrice(reservation.getTotalPrice());
                    dto.setStatus(reservation.getStatus());
+                   dto.setSlotOpened(reservation.getParkingSlot().isOpened());
                    return dto;
                }
         ).toList();
@@ -239,5 +249,35 @@ public class ReservationController {
         int hour = Integer.parseInt(parts[0]);
         int minute = Integer.parseInt(parts[1]);
         return baseDate.withHour(hour).withMinute(minute);
+    }
+
+    @PatchMapping("/{reservationId}/status")
+    public ResponseEntity<?> updateReservationStatus(
+            @PathVariable long reservationId,
+            @RequestParam ReservationStatus status,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails
+    ) {
+        if (customUserDetails == null) {
+            return ResponseEntity.status(401).body("로그인 필요");
+        }
+
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new RuntimeException("예약이 존재하지 않습니다."));
+
+        // 본인 예약인지 확인 (관리자 검사 없이 누구나 가능하게 하려면 이 조건도 제거 가능)
+        if (!reservation.getUser().getId().equals(customUserDetails.getUser().getId())) {
+            return ResponseEntity.status(403).body("본인의 예약만 상태 변경이 가능합니다.");
+        }
+
+        reservation.setStatus(status);
+        reservationRepository.save(reservation);
+
+        // 상태가 COMPLETED일 경우 ParkingSlot 상태도 갱신
+        if (status == ReservationStatus.COMPLETED) {
+            reservation.getParkingSlot().setOpened(false);     // 차단기 닫음
+            reservation.getParkingSlot().setAvailable(true);   // 다시 예약 가능
+        }
+
+        return ResponseEntity.ok("예약 상태가 " + status + "로 변경되었습니다.");
     }
 }

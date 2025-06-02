@@ -52,9 +52,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             WHERE r.user.id = :userId
             AND r.parkingSlot.id = :slotId
             AND r.status = 'ACTIVE'
-            AND :now BETWEEN r.startTime AND r.endTime
             """)
-    Optional<Reservation> findActiveReservationNow(Long userId, Long slotId, LocalDateTime now);
+    Optional<Reservation> findActiveReservation(Long userId, Long slotId, LocalDateTime now);
 
     @Query("SELECT COUNT(r), COALESCE(SUM(r.totalPrice), 0) " +
             "FROM Reservation r " +

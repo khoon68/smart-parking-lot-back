@@ -12,9 +12,11 @@ public class ReservationResponseDTO {
     private Long reservationId;
     private String username;
     private String parkingLotName;
+    private Long slotId;
     private int slotNumber;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
+    private String startTime;
+    private String endTime;
     private int totalPrice;
     private ReservationStatus status;
+    private boolean isSlotOpened;
 }

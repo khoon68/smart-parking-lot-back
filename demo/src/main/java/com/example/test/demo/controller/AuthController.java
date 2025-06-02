@@ -29,7 +29,7 @@ public class AuthController {
         user.setRole(UserRole.USER);
         user.setCreatedAt(LocalDateTime.now());
         UserRepository.save(user);
-        return ResponseEntity.ok("user register");
+        return ResponseEntity.ok(Map.of("message", "user register"));
     }
 
     @PostMapping("/login")
