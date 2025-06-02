@@ -177,7 +177,7 @@ public class ReservationController {
                    dto.setSlotId(reservation.getParkingSlot().getId());
                    dto.setSlotNumber(reservation.getParkingSlot().getSlotNumber());
                    dto.setParkingLotName(reservation.getParkingSlot().getParkingLot().getName());
-                   dto.setStartTime(reservation.getEndTime().format(formatter));
+                   dto.setStartTime(reservation.getStartTime().format(formatter));
                    dto.setEndTime(reservation.getEndTime().format(formatter));
                    dto.setTotalPrice(reservation.getTotalPrice());
                    dto.setStatus(reservation.getStatus());
