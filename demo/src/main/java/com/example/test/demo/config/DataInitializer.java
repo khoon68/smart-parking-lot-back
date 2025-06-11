@@ -63,7 +63,7 @@ public class DataInitializer implements CommandLineRunner {
             // 2. user1이 주차공간 1개 생성
             ParkingLot space1 = ParkingLotRepository.save(
                     ParkingLot.builder()
-                            .name("테스트 주차장1")
+                            .name("공대1관 주차장")
                             .distance(100)
                             .owner(user1)
                             .pricePerHour(1000)
@@ -74,7 +74,7 @@ public class DataInitializer implements CommandLineRunner {
 
             ParkingLot space2 = ParkingLotRepository.save(
                     ParkingLot.builder()
-                            .name("테스트 주차장2")
+                            .name("어울림관 주차장")
                             .distance(200)
                             .owner(user2)
                             .pricePerHour(2000)
@@ -84,11 +84,11 @@ public class DataInitializer implements CommandLineRunner {
             );
 
             // 3. 주차공간에 슬롯 6개 생성
-            ParkingSlot s1 = ParkingSlot.builder().slotNumber(1).isAvailable(true).isOpened(false).hardwareId("esp01").parkingLot(space1).build();
-            ParkingSlot s2 = ParkingSlot.builder().slotNumber(2).isAvailable(true).isOpened(false).hardwareId("esp02").parkingLot(space1).build();
+            ParkingSlot s1 = ParkingSlot.builder().slotNumber(1).isAvailable(true).isOpened(false).hardwareId("25").parkingLot(space1).build();
+            ParkingSlot s2 = ParkingSlot.builder().slotNumber(2).isAvailable(true).isOpened(false).hardwareId("26").parkingLot(space1).build();
             ParkingSlot s3 = ParkingSlot.builder().slotNumber(3).isAvailable(true).isOpened(false).hardwareId("esp03").parkingLot(space1).build();
-            ParkingSlot s4 = ParkingSlot.builder().slotNumber(4).isAvailable(true).isOpened(false).hardwareId("25").parkingLot(space1).build();
-            ParkingSlot s5 = ParkingSlot.builder().slotNumber(5).isAvailable(true).isOpened(false).hardwareId("26").parkingLot(space1).build();
+            ParkingSlot s4 = ParkingSlot.builder().slotNumber(4).isAvailable(true).isOpened(false).hardwareId("x").parkingLot(space1).build();
+            ParkingSlot s5 = ParkingSlot.builder().slotNumber(5).isAvailable(true).isOpened(false).hardwareId("x").parkingLot(space1).build();
             ParkingSlot s6 = ParkingSlot.builder().slotNumber(6).isAvailable(true).isOpened(false).hardwareId("27").parkingLot(space1).build();
             ParkingSlotRepository.saveAll(List.of(s1, s2, s3, s4, s5, s6));
 
