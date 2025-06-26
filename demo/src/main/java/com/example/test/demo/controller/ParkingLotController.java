@@ -20,7 +20,8 @@ public class ParkingLotController {
 
     @GetMapping
     public ResponseEntity<List<ParkingLotDTO>> getAvailableParkingSpaces() {
-        List<ParkingLot> parkingLots = parkingLotRepository.findByAvailableSlotsGreaterThan(0);
+        List<ParkingLot> parkingLots = parkingLotRepository
+            .findByAvailableSlotsGreaterThan(0);
         List<ParkingLotDTO> dtos = parkingLots.stream().map(
                 parkingLot -> new ParkingLotDTO(
                         parkingLot.getId(),
