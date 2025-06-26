@@ -32,8 +32,11 @@ public class BarrierController {
         Long userId = customUserDetails.getUser().getId();
         LocalDateTime now = LocalDateTime.now();
 
-        Reservation reservation = reservationRepository.findActiveReservation(userId, slotId, now)
-                .orElseThrow(() -> new RuntimeException("해당 슬롯에 활성 예약이 없습니다."));
+        Reservation reservation = reservationRepository.findActiveReservation(
+            userId, slotId, now
+        ).orElseThrow(
+            () -> new RuntimeException("해당 슬롯에 활성 예약이 없습니다.")
+        );
 
         // 슬롯 상태 변경
         ParkingSlot slot = reservation.getParkingSlot();
@@ -51,8 +54,11 @@ public class BarrierController {
             @AuthenticationPrincipal CustomUserDetails customUserDetails
     ) {
         Long userId = customUserDetails.getUser().getId();
-        Reservation reservation = reservationRepository.findActiveReservation(userId, slotId, LocalDateTime.now())
-                .orElseThrow(() -> new RuntimeException("해당 슬롯에 활성 예약이 없습니다."));
+        Reservation reservation = reservationRepository.findActiveReservation(
+            userId, slotId, LocalDateTime.now()
+        ).orElseThrow(
+            () -> new RuntimeException("해당 슬롯에 활성 예약이 없습니다.")
+        );
 
         // 예약 상태를 COMPLETED로 변경
         reservation.setStatus(ReservationStatus.COMPLETED);
@@ -65,7 +71,9 @@ public class BarrierController {
         parkingSlotRepository.save(slot);
 
         mqttBarrierService.sendCommand(slotId, "close");
-        return ResponseEntity.ok(Map.of("message", "차단기 닫힘 및 예약 완료 처리 완료"));
+        return ResponseEntity.ok(
+            Map.of("message", "차단기 닫힘 및 예약 완료 처리 완료")
+        );
     }
 
     @PostMapping("/{slotId}/command")
